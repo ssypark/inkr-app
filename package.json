@@ -1,0 +1,33 @@
+{
+  "name": "week6-example1-working",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@hookstate/core": "^4.0.1",
+    "@react-native-async-storage/async-storage": "^2.1.1",
+    "@react-native-community/datetimepicker": "8.2.0",
+    "@react-navigation/native": "^7.0.15",
+    "@react-navigation/native-stack": "^7.2.1",
+    "@rneui/base": "^4.0.0-rc.7",
+    "@rneui/themed": "^4.0.0-rc.8",
+    "expo": "~52.0.30",
+    "expo-font": "^13.0.4",
+    "expo-image-picker": "~16.0.6",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.6",
+    "react-native-safe-area-context": "^4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-uuid": "^2.0.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
