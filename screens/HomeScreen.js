@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { View, FlatList, Image, TouchableOpacity, Text, Modal, Pressable, TouchableWithoutFeedback } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { FAB } from '@rneui/themed';
@@ -19,12 +19,39 @@ export default function HomeScreen() {
     const [filter, setFilter] = useState('all');
     const [modalVisible, setModalVisible] = useState(false);
     const navigation = useNavigation();
+    const flatListRef = useRef(null);
 
     // Force FlatList re-render when columns change based on filter for better UX
     const getNumColumns = () => {
         if (filter === 'week') return 2;
         if (filter === 'month') return 3;
-        return 4;
+        return 7; // Show 7 columns for all time view (like a calendar)
+    };
+
+    const getThumbnailSize = () => {
+        switch (filter) {
+            case 'week':
+                return 150;
+            case 'month':
+                return 100;
+            default:
+                return 50; // Smaller thumbnails for all time view
+        }
+    };
+
+    const getTodayIndex = (filter) => {
+        const today = new Date();
+        
+        switch (filter) {
+            case 'week':
+                return today.getDay();
+            case 'month':
+                return today.getDate() - 1;
+            default:
+                const startOfYear = new Date(today.getFullYear(), 0, 1);
+                const diff = today - startOfYear;
+                return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
     };
 
     // Load sketches on mount. We use the empty dependency array to ensure this effect
@@ -73,6 +100,105 @@ export default function HomeScreen() {
         setFilter(selectedFilter);
         applyFilter(sketches, selectedFilter);
         setModalVisible(false);
+    };
+
+    useEffect(() => {
+        if (flatListRef.current) {
+            const todayIndex = getTodayIndex(filter);
+            const columnCount = getNumColumns();
+            const rowIndex = Math.floor(todayIndex / columnCount);
+            
+            // Calculate the y-position to scroll to
+            const itemHeight = getThumbnailSize() + 10; // height + margin
+            const scrollPosition = rowIndex * itemHeight;
+            
+            // Add a small delay to ensure the FlatList has rendered
+            setTimeout(() => {
+                flatListRef.current.scrollToOffset({
+                    offset: scrollPosition,
+                    animated: true
+                });
+            }, 100);
+        }
+    }, [filter]);
+
+    const DotPlaceholder = ({ date }) => {
+        const isToday = date.toDateString() === new Date().toDateString();
+        const marginSize = filter === 'all' ? 2 : 5;
+        
+        const PlaceholderContent = (
+            <View
+                style={{
+                    width: getThumbnailSize(),
+                    height: getThumbnailSize(),
+                    margin: marginSize,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'transparent',
+                    borderWidth: isToday ? 2 : 0,
+                    borderColor: theme.colors.accent,
+                    borderRadius: 5
+                }}
+            >
+                <View
+                    style={{
+                        width: isToday ? 8 : 5,
+                        height: isToday ? 8 : 5,
+                        borderRadius: 5,
+                        backgroundColor: isToday ? theme.colors.accent : theme.colors.border
+                    }}
+                />
+            </View>
+        );
+
+        return isToday ? (
+            <TouchableOpacity onPress={() => navigation.navigate('Prompt')}>
+                {PlaceholderContent}
+            </TouchableOpacity>
+        ) : (
+            PlaceholderContent
+        );
+    };
+
+    const generatePlaceholderData = (filter) => {
+        const today = new Date();
+        let numberOfPlaceholders = 0;
+        
+        switch (filter) {
+            case 'week':
+                numberOfPlaceholders = 7;
+                break;
+            case 'month':
+                const year = today.getFullYear();
+                const month = today.getMonth();
+                numberOfPlaceholders = new Date(year, month + 1, 0).getDate();
+                break;
+            default:
+                // All time view shows full year
+                const isLeapYear = year => {
+                    return year % 400 === 0 || (year % 100 !== 0 && year % 4 === 0);
+                };
+                numberOfPlaceholders = isLeapYear(today.getFullYear()) ? 366 : 365;
+        }
+        
+        // Create array of dates
+        const dates = Array.from({ length: numberOfPlaceholders }, (_, index) => {
+            const date = new Date();
+            if (filter === 'week') {
+                date.setDate(date.getDate() - date.getDay() + index);
+            } else if (filter === 'month') {
+                date.setDate(1 + index);
+            } else {
+                date.setMonth(0, 1 + index);
+            }
+            return {
+                id: `placeholder-${date.toISOString()}`,
+                date: date,
+                isEmpty: true
+            };
+        });
+
+        return dates;
     };
 
     return (
@@ -169,7 +295,7 @@ export default function HomeScreen() {
                             </Pressable>
 
                             <Pressable onPress={() => setModalVisible(false)} style={{ paddingVertical: 10, marginTop: 10 }}>
-                                <Text style={{ fontSize: 14, fontFamily: theme.fonts.primary, color: 'red' }}>
+                                <Text style={{ fontSize: 14, fontFamily: theme.fonts.primary, color: 'black' }}>
                                     Cancel
                                 </Text>
                             </Pressable>
@@ -182,36 +308,56 @@ export default function HomeScreen() {
             <View style={{
                 flex: 1,
                 backgroundColor: theme.colors.background,
-                justifyContent: filteredSketches.length === 0 ? 'center' : 'flex-start',
-                alignItems: 'center'
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                paddingHorizontal: filter === 'all' ? 10 : 0,  // Add horizontal padding for all time view
+                paddingVertical: filter === 'all' ? 10 : 0     // Add vertical padding for all time view
             }}>
-                {filteredSketches.length === 0 ? (
-                    <Text style={{ textAlign: 'center', fontFamily: theme.fonts.primary }}>
-                        No sketches yet. Start your first one!
-                    </Text>
-                ) : (
-                    <FlatList
-                        key={getNumColumns()} 
-                        data={filteredSketches}
-                        keyExtractor={(item) => item.id}
-                        numColumns={getNumColumns()}
-                        extraData={filter}
-                        renderItem={({ item }) => (
+                <FlatList
+                    ref={flatListRef}
+                    key={getNumColumns()} 
+                    contentContainerStyle={{
+                        paddingBottom: filter === 'all' ? 20 : 0  // Add bottom padding for all time view
+                    }}
+                    data={(() => {
+                        const placeholders = generatePlaceholderData(filter);
+                        // Convert sketches dates to strings for comparison
+                        const sketchDates = new Map(
+                            filteredSketches.map(sketch => [
+                                new Date(sketch.date).toDateString(),
+                                sketch
+                            ])
+                        );
+                        
+                        // Replace placeholders with actual sketches where they exist
+                        return placeholders.map(placeholder => 
+                            sketchDates.get(placeholder.date.toDateString()) || placeholder
+                        );
+                    })()}
+                    keyExtractor={(item) => item.id}
+                    numColumns={getNumColumns()}
+                    extraData={[filter, filteredSketches]}
+                    renderItem={({ item }) => (
+                        item.isEmpty ? (
+                            <DotPlaceholder date={item.date} />
+                        ) : (
                             <TouchableOpacity onPress={() => navigation.navigate('SketchDetail', { sketch: item })}>
                                 <Image
                                     source={item.imageUri}
                                     resizeMode='cover'
                                     style={{
-                                        width: getNumColumns() === 2 ? 150 : getNumColumns() === 3 ? 100 : 75,
-                                        height: getNumColumns() === 2 ? 150 : getNumColumns() === 3 ? 100 : 75,
-                                        margin: 5,
-                                        borderRadius: 5
+                                        width: getThumbnailSize(),
+                                        height: getThumbnailSize(),
+                                        margin: filter === 'all' ? 2 : 5,  // Smaller margins for all time view
+                                        borderRadius: 5,
+                                        borderWidth: new Date(item.date).toDateString() === new Date().toDateString() ? 2 : 0,
+                                        borderColor: theme.colors.accent
                                     }}
                                 />
                             </TouchableOpacity>
-                        )}
-                    />
-                )}
+                        )
+                    )}
+                />
             </View>
 
             {/* Floating Action Button */}
