@@ -32,7 +32,7 @@ export const SketchCanvas = ({ onSave }) => {
         newPath.path.moveTo(x, y);
         currentPath.current = newPath;
     };
-
+// thanks all
     const onDrawingActive = ({ x, y }) => {
         if (!currentPath.current || isNaN(x) || isNaN(y)) return;
         
