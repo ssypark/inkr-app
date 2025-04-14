@@ -1,5 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+// Import SketchManager functions from the server-compatible version
+const { 
+  getSketchData, 
+  updateSketchData, 
+  deleteSketch, 
+  loadSampleData,
+  filterByWeek,
+  filterByMonth,
+  filterAllTime
+} = require('./sketchManager.server');
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Use environment variable or default to 3001
@@ -23,9 +33,6 @@ const dailyPrompts = [
   "Portrait of a friend"
 ];
 
-// Placeholder for sketches (replace with database interaction)
-let sketches = []; // In-memory store for now
-
 // --- API Routes ---
 
 // GET Daily Prompt
@@ -35,58 +42,131 @@ app.get('/api/prompts/daily', (req, res) => {
   res.json({ prompt: dailyPrompts[randomIndex] });
 });
 
-// GET All Sketches (Placeholder)
-app.get('/api/sketches', (req, res) => {
+// GET All Sketches (Now using SketchManager)
+app.get('/api/sketches', async (req, res) => {
   console.log('GET /api/sketches');
-  // In a real app, fetch from database here
-  res.json(sketches);
+  try {
+    // Get filter type from query params if provided
+    const filterType = req.query.filter || 'all';
+    
+    // Get sketches from file storage
+    let sketches = await getSketchData();
+    
+    // Apply filters if needed
+    switch(filterType) {
+      case 'week':
+        sketches = filterByWeek(sketches);
+        break;
+      case 'month':
+        sketches = filterByMonth(sketches);
+        break;
+      case 'all':
+      default:
+        sketches = filterAllTime(sketches);
+    }
+    
+    res.json(sketches);
+  } catch (error) {
+    console.error('Error fetching sketches:', error);
+    res.status(500).json({ message: 'Failed to fetch sketches' });
+  }
 });
 
-// POST Add a new Sketch (Placeholder)
-// Note: For simplicity, this adds one sketch. You might adapt it
-// or create a separate /batch endpoint if needed.
-app.post('/api/sketches', (req, res) => {
+// POST Add a new Sketch (Now using SketchManager)
+app.post('/api/sketches', async (req, res) => {
   console.log('POST /api/sketches', req.body);
   const newSketch = req.body;
-  // Basic validation (add more robust validation later)
+  
+  // Basic validation
   if (!newSketch || !newSketch.id || !newSketch.uri || !newSketch.date) {
     return res.status(400).json({ message: 'Invalid sketch data provided.' });
   }
-  // Add ID generation if not provided by client (e.g., using uuid)
-  // Check for duplicate IDs if necessary
-  const existingIndex = sketches.findIndex(s => s.id === newSketch.id);
-  if (existingIndex !== -1) {
+  
+  try {
+    // Get current sketches
+    const sketches = await getSketchData();
+    
+    // Check for duplicates
+    const existingIndex = sketches.findIndex(s => s.id === newSketch.id);
+    if (existingIndex !== -1) {
       // Update existing sketch
       sketches[existingIndex] = newSketch;
+      await updateSketchData(sketches);
       console.log('Updated sketch:', newSketch.id);
       res.status(200).json(newSketch);
-  } else {
+    } else {
       // Add new sketch
-      sketches.push(newSketch);
+      const updatedSketches = [...sketches, newSketch];
+      await updateSketchData(updatedSketches);
       console.log('Added new sketch:', newSketch.id);
       res.status(201).json(newSketch); // 201 Created
+    }
+  } catch (error) {
+    console.error('Error saving sketch:', error);
+    res.status(500).json({ message: 'Failed to save sketch' });
   }
-
 });
 
-// DELETE a Sketch (Placeholder)
-app.delete('/api/sketches/:id', (req, res) => {
+// DELETE a Sketch (Now using SketchManager)
+app.delete('/api/sketches/:id', async (req, res) => {
   const { id } = req.params;
   console.log(`DELETE /api/sketches/${id}`);
-  const initialLength = sketches.length;
-  sketches = sketches.filter(sketch => sketch.id !== id);
-
-  if (sketches.length < initialLength) {
-    console.log(`Deleted sketch: ${id}`);
-    res.status(200).json({ message: `Sketch ${id} deleted successfully.` }); // Or 204 No Content
-  } else {
-    console.log(`Sketch not found: ${id}`);
-    res.status(404).json({ message: `Sketch ${id} not found.` });
+  
+  try {
+    // Get current sketches to check if the ID exists
+    const sketches = await getSketchData();
+    const initialLength = sketches.length;
+    
+    // Use the SketchManager deleteSketch function
+    await deleteSketch(id);
+    
+    // Verify deletion was successful by getting updated list
+    const updatedSketches = await getSketchData();
+    
+    if (updatedSketches.length < initialLength) {
+      console.log(`Deleted sketch: ${id}`);
+      res.status(200).json({ message: `Sketch ${id} deleted successfully.` });
+    } else {
+      console.log(`Sketch not found: ${id}`);
+      res.status(404).json({ message: `Sketch ${id} not found.` });
+    }
+  } catch (error) {
+    console.error('Error deleting sketch:', error);
+    res.status(500).json({ message: 'Failed to delete sketch' });
   }
 });
 
+// NEW: Load sample data endpoint
+app.post('/api/sketches/load-samples', async (req, res) => {
+  console.log('POST /api/sketches/load-samples');
+  try {
+    await loadSampleData();
+    const sketches = await getSketchData();
+    res.status(200).json({ 
+      message: 'Sample data loaded successfully',
+      count: sketches.length
+    });
+  } catch (error) {
+    console.error('Error loading sample data:', error);
+    res.status(500).json({ message: 'Failed to load sample data' });
+  }
+});
 
 // --- Start Server ---
-app.listen(PORT, () => {
-  console.log(`Inkr backend server running on http://localhost:${PORT}`);
-});
+// Listen on the port, and if there's an error (like port already in use),
+// try a different port
+const startServer = (port) => {
+  const server = app.listen(port, () => {
+    console.log(`Inkr backend server running on http://localhost:${port}`);
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is already in use, trying port ${port + 1}`);
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+};
+
+// Start the server
+startServer(PORT);
