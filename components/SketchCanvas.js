@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+import { Canvas, Path, Skia, useCanvasRef } from '@shopify/react-native-skia';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
@@ -19,11 +19,21 @@ export const SketchCanvas = ({ onSave }) => {
     const [currentColor, setCurrentColor] = useState(COLORS[0]);
     const [currentStrokeWidth, setCurrentStrokeWidth] = useState(STROKE_WIDTHS[0]);
     const currentPath = useRef(null);
-    const canvasRef = useRef(null);
+    const canvasRef = useCanvasRef();
+    const [drawing, setDrawing] = useState(false);
 
-    const onDrawingStart = ({ x, y }) => {
-        if (isNaN(x) || isNaN(y)) return;
+    // Key fix: split onTouch into separate touchStart, touchActive functions
+    const onTouchStart = (touchInfo) => {
+        // Check if touchInfo exists and has valid coordinates
+        if (!touchInfo || typeof touchInfo.x !== 'number' || typeof touchInfo.y !== 'number') {
+            console.log("Invalid touch coordinates:", touchInfo);
+            return;
+        }
         
+        const { x, y } = touchInfo;
+        console.log("Touch start at:", x, y); // Debug log
+        
+        setDrawing(true);
         const newPath = {
             path: Skia.Path.Make(),
             color: currentColor,
@@ -32,20 +42,32 @@ export const SketchCanvas = ({ onSave }) => {
         newPath.path.moveTo(x, y);
         currentPath.current = newPath;
     };
-// thanks all
-    const onDrawingActive = ({ x, y }) => {
-        if (!currentPath.current || isNaN(x) || isNaN(y)) return;
+    
+    const onTouchActive = (touchInfo) => {
+        // Check if touchInfo exists and has valid coordinates
+        if (!touchInfo || typeof touchInfo.x !== 'number' || typeof touchInfo.y !== 'number') {
+            console.log("Invalid touch coordinates:", touchInfo);
+            return;
+        }
         
-        currentPath.current.path.lineTo(x, y);
-        // Force re-render
-        setPaths([...paths]);
+        const { x, y } = touchInfo;
+        console.log("Touch active at:", x, y); // Debug log
+        
+        if (currentPath.current && drawing) {
+            currentPath.current.path.lineTo(x, y);
+            // Force re-render by creating a new array
+            setPaths([...paths]);
+        }
     };
 
-    const onDrawingFinished = () => {
-        if (!currentPath.current) return;
+    const onTouchEnd = () => {
+        console.log("Touch ended"); // Debug log
         
-        setPaths([...paths, currentPath.current]);
-        currentPath.current = null;
+        if (currentPath.current) {
+            setPaths([...paths, currentPath.current]);
+            currentPath.current = null;
+            setDrawing(false);
+        }
     };
 
     const handleUndo = () => {
@@ -55,6 +77,7 @@ export const SketchCanvas = ({ onSave }) => {
     const handleClear = () => {
         setPaths([]);
         currentPath.current = null;
+        setDrawing(false);
     };
 
     const handleSave = async () => {
@@ -62,8 +85,8 @@ export const SketchCanvas = ({ onSave }) => {
             if (canvasRef.current) {
                 const image = canvasRef.current.makeImageSnapshot();
                 if (image) {
-                    const bytes = image.encodeToBase64();
-                    onSave(bytes);
+                    const base64 = image.encodeToBase64();
+                    onSave(`data:image/png;base64,${base64}`);
                 }
             }
         } catch (error) {
@@ -128,9 +151,9 @@ export const SketchCanvas = ({ onSave }) => {
             <Canvas
                 ref={canvasRef}
                 style={styles.canvas}
-                onTouchStart={onDrawingStart}
-                onTouchMove={onDrawingActive}
-                onTouchEnd={onDrawingFinished}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchActive}
+                onTouchEnd={onTouchEnd}
             >
                 {paths.map((path, index) => (
                     <Path
@@ -144,9 +167,9 @@ export const SketchCanvas = ({ onSave }) => {
                 {currentPath.current && (
                     <Path
                         path={currentPath.current.path}
-                        strokeWidth={currentStrokeWidth}
+                        strokeWidth={currentPath.current.strokeWidth}
                         style="stroke"
-                        color={currentColor}
+                        color={currentPath.current.color}
                     />
                 )}
             </Canvas>
@@ -214,5 +237,6 @@ const styles = StyleSheet.create({
         width: SCREEN_WIDTH - 40,
         height: CANVAS_HEIGHT,
         backgroundColor: '#fff',
+        alignSelf: 'center', // Center the canvas
     }
 });
