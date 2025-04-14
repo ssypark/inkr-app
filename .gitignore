@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# Expo specific
+.expo/
+.expo-shared/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+expo-debug.log
+
+# VSCode settings
+.vscode/
+
+# Cache & builds
+.cache/
+dist/
+build/
+android/
+ios/
+
+# Asset bundling
+*.bundle
+*.map
+
+# Expo assets
+assets/*.db
+assets/splash-icon.png
+assets/adaptive-icon.png
+assets/icon.png
+assets/favicon.png
+
+# Temporary files
+*.tmp
+*.swp
