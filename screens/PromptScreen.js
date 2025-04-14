@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { prompts } from '../data/prompts';
-import { SimpleSketchCanvas } from '../components/SimpleSketchCanvas';
+import { SketchCanvas } from '../components/SketchCanvas';
 import { updateSketchData, getSketchData } from '../services/SketchManager';
 
 export default function PromptScreen({ navigation }) {
@@ -66,7 +66,7 @@ export default function PromptScreen({ navigation }) {
 
             {/* Canvas */}
             <View style={styles.canvasContainer}>
-                <SimpleSketchCanvas onSave={handleSaveSketch} />
+                <SketchCanvas onSave={handleSaveSketch} />
             </View>
 
             {/* Bottom Buttons */}
