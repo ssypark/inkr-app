@@ -1,9 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { Canvas, Path, Skia, useCanvasRef } from '@shopify/react-native-skia';
+import { PerfectSketchCanvas } from 'rn-perfect-sketch-canvas';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CANVAS_HEIGHT = SCREEN_HEIGHT * 0.6;
@@ -15,58 +14,24 @@ const COLORS = [
 
 const STROKE_WIDTHS = [2, 4, 6, 8];
 
-export const SketchCanvas = ({ onSave }) => {
-    const [paths, setPaths] = useState([]);
-    const [currentColor, setCurrentColor] = useState(COLORS[0]);
-    const [currentStrokeWidth, setCurrentStrokeWidth] = useState(STROKE_WIDTHS[0]);
-    const pathRef = useRef(null);
-    const canvasRef = useCanvasRef();
-
-    // Use Gesture Handler for more reliable touch events
-    const panGesture = Gesture.Pan()
-        .onStart(e => {
-            console.log("Pan started:", e.x, e.y);
-            const newPath = {
-                path: Skia.Path.Make(),
-                color: currentColor,
-                strokeWidth: currentStrokeWidth
-            };
-            newPath.path.moveTo(e.x, e.y);
-            pathRef.current = newPath;
-        })
-        .onUpdate(e => {
-            console.log("Pan update:", e.x, e.y);
-            if (pathRef.current) {
-                pathRef.current.path.lineTo(e.x, e.y);
-                // Force re-render
-                setPaths([...paths]);
-            }
-        })
-        .onEnd(() => {
-            console.log("Pan ended");
-            if (pathRef.current) {
-                setPaths([...paths, pathRef.current]);
-                pathRef.current = null;
-            }
-        });
+export const SimpleSketchCanvas = ({ onSave }) => {
+    const [currentColor, setCurrentColor] = React.useState(COLORS[0]);
+    const [currentStrokeWidth, setCurrentStrokeWidth] = React.useState(STROKE_WIDTHS[0]);
+    const canvasRef = useRef(null);
 
     const handleUndo = () => {
-        setPaths(paths.slice(0, -1));
+        canvasRef.current?.undo();
     };
 
     const handleClear = () => {
-        setPaths([]);
-        pathRef.current = null;
+        canvasRef.current?.clear();
     };
 
     const handleSave = async () => {
         try {
-            if (canvasRef.current) {
-                const image = canvasRef.current.makeImageSnapshot();
-                if (image) {
-                    const base64 = image.encodeToBase64();
-                    onSave(`data:image/png;base64,${base64}`);
-                }
+            const base64 = await canvasRef.current?.toImage();
+            if (base64) {
+                onSave(`data:image/png;base64,${base64}`);
             }
         } catch (error) {
             console.error('Error saving sketch:', error);
@@ -94,7 +59,10 @@ export const SketchCanvas = ({ onSave }) => {
                                 { backgroundColor: color },
                                 color === currentColor && styles.selectedColor
                             ]}
-                            onPress={() => setCurrentColor(color)}
+                            onPress={() => {
+                                setCurrentColor(color);
+                                canvasRef.current?.setStrokeColor(color);
+                            }}
                         />
                     ))}
                 </View>
@@ -112,7 +80,10 @@ export const SketchCanvas = ({ onSave }) => {
                             styles.strokeButton,
                             width === currentStrokeWidth && styles.selectedStroke
                         ]}
-                        onPress={() => setCurrentStrokeWidth(width)}
+                        onPress={() => {
+                            setCurrentStrokeWidth(width);
+                            canvasRef.current?.setStrokeWidth(width);
+                        }}
                     >
                         <View 
                             style={[
@@ -127,30 +98,13 @@ export const SketchCanvas = ({ onSave }) => {
                 ))}
             </View>
 
-            <GestureDetector gesture={panGesture}>
-                <Canvas
-                    ref={canvasRef}
-                    style={styles.canvas}
-                >
-                    {paths.map((path, index) => (
-                        <Path
-                            key={index}
-                            path={path.path}
-                            strokeWidth={path.strokeWidth}
-                            style="stroke"
-                            color={path.color}
-                        />
-                    ))}
-                    {pathRef.current && (
-                        <Path
-                            path={pathRef.current.path}
-                            strokeWidth={pathRef.current.strokeWidth}
-                            style="stroke"
-                            color={pathRef.current.color}
-                        />
-                    )}
-                </Canvas>
-            </GestureDetector>
+            <PerfectSketchCanvas
+                ref={canvasRef}
+                containerStyle={styles.canvas}
+                strokeColor={currentColor}
+                strokeWidth={currentStrokeWidth}
+                backgroundColor="#FFFFFF"
+            />
         </View>
     );
 };
@@ -172,7 +126,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
     },
     toolButton: {
+        backgroundColor: 'white',
         padding: 10,
+        borderRadius: 30,
+        borderWidth: 3,
+        borderColor: theme.colors.border,
+        marginHorizontal: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 1,
+        elevation: 3,
     },
     colorPicker: {
         flexDirection: 'row',
@@ -215,6 +179,7 @@ const styles = StyleSheet.create({
         width: SCREEN_WIDTH - 40,
         height: CANVAS_HEIGHT,
         backgroundColor: '#fff',
-        alignSelf: 'center', // Center the canvas
+        alignSelf: 'center',
+        borderRadius: 10,
     }
 });

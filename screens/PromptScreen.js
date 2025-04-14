@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { prompts } from '../data/prompts';
-import { SketchCanvas } from '../components/SketchCanvas';
-import { saveSketchToStorage, saveSketchData } from '../services/SketchManager';
+import { SimpleSketchCanvas } from '../components/SimpleSketchCanvas';
+import { updateSketchData, getSketchData } from '../services/SketchManager';
 
 export default function PromptScreen({ navigation }) {
     const [prompt, setPrompt] = useState('');
@@ -25,17 +25,27 @@ export default function PromptScreen({ navigation }) {
 
     const handleSaveSketch = async (imageData) => {
         try {
-            const filename = `sketch-${Date.now()}.png`;
-            await saveSketchToStorage(filename, imageData);
+            // Create a unique ID for the sketch
+            const sketchId = `sketch-${Date.now()}`;
             
+            // Create a new sketch object
             const newSketch = {
-                id: filename,
-                date: new Date().toISOString(),
-                imageUri: filename,
-                prompt
+                id: sketchId,
+                date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+                prompt: prompt,
+                imageUri: imageData // This is already a data URL from SketchCanvas
             };
             
-            await saveSketchData(newSketch);
+            // Get existing sketches
+            const existingSketches = await getSketchData();
+            
+            // Add the new sketch to the array
+            const updatedSketches = [...existingSketches, newSketch];
+            
+            // Save the updated sketches array
+            await updateSketchData(updatedSketches);
+            
+            // Navigate back to the home screen
             navigation.goBack();
         } catch (error) {
             console.error('Error saving sketch:', error);
@@ -56,7 +66,7 @@ export default function PromptScreen({ navigation }) {
 
             {/* Canvas */}
             <View style={styles.canvasContainer}>
-                <SketchCanvas onSave={handleSaveSketch} />
+                <SimpleSketchCanvas onSave={handleSaveSketch} />
             </View>
 
             {/* Bottom Buttons */}
