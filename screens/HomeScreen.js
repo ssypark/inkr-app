@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, FlatList, Image, TouchableOpacity, Text, Modal, Pressable, TouchableWithoutFeedback } from 'react-native';
+import { View, FlatList, Image, TouchableOpacity, Text, Modal, Pressable, TouchableWithoutFeedback, Dimensions } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { FAB } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -103,23 +103,28 @@ export default function HomeScreen() {
     };
 
     useEffect(() => {
-        if (flatListRef.current) {
-            const todayIndex = getTodayIndex(filter);
-            const columnCount = getNumColumns();
-            const rowIndex = Math.floor(todayIndex / columnCount);
-            
-            // Calculate the y-position to scroll to
-            const itemHeight = getThumbnailSize() + 10; // height + margin
-            const scrollPosition = rowIndex * itemHeight;
-            
-            // Add a small delay to ensure the FlatList has rendered
-            setTimeout(() => {
+        // Increase the delay to give more time for the FlatList to render fully
+        const scrollTimer = setTimeout(() => {
+            if (flatListRef.current) {
+                const todayIndex = getTodayIndex(filter);
+                const columnCount = getNumColumns();
+                const rowIndex = Math.floor(todayIndex / columnCount);
+                
+                // Calculate the y-position to scroll to
+                const itemHeight = getThumbnailSize() + (filter === 'all' ? 4 : 10); // height + margin
+                
+                // Calculate scroll position to place item a bit above center (40% from top instead of 50%)
+                const screenHeight = Dimensions.get('window').height;
+                const centerPosition = Math.max(0, (rowIndex * itemHeight) - (screenHeight * 0.1) + (itemHeight / 2));
+                
                 flatListRef.current.scrollToOffset({
-                    offset: scrollPosition,
+                    offset: centerPosition,
                     animated: true
                 });
-            }, 100);
-        }
+            }
+        }, 500); // Increased delay to 500ms to ensure FlatList is fully rendered
+        
+        return () => clearTimeout(scrollTimer);
     }, [filter]);
 
     const DotPlaceholder = ({ date }) => {
