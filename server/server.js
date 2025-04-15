@@ -16,7 +16,13 @@ const PORT = process.env.PORT || 10000; // Use environment variable or default t
 
 // --- Middleware ---
 app.use(cors()); // Enable Cross-Origin Resource Sharing for requests from your app
-app.use(express.json()); // Enable parsing of JSON request bodies
+app.use(express.json({ 
+  limit: '10mb' // Increase payload size limit to 10MB
+})); 
+app.use(express.urlencoded({
+  limit: '10mb',
+  extended: true
+})); // Configure URL-encoded bodies with increased limits too
 
 // --- In-memory Data (Replace with Database later) ---
 // Simple list of prompts for the daily endpoint
