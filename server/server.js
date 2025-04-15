@@ -9,7 +9,46 @@ const {
   filterByWeek,
   filterByMonth,
   filterAllTime
-} = require('./sketchManager.server');
+} = require('./sketchManager.server'); // Remove the 'w' typo here
+
+// Define the prompts list directly in the server file
+const prompts = [
+    "Drift",
+    "Echo",
+    "Fragment",
+    "Lush",
+    "Obscure",
+    "Weightless",
+    "Horizon",
+    "Stillness",
+    "Twist",
+    "Hollow",
+    "Surge",
+    "Veil",
+    "Balance",
+    "Tangle",
+    "Illuminate",
+    "Threshold",
+    "Flicker",
+    "Wander",
+    "Glimpse",
+    "Ethereal",
+    "Chasm",
+    "Resonance",
+    "Frost",
+    "Crackle",
+    "Nest",
+    "Bloom",
+    "Shatter",
+    "Ember",
+    "Pulse",
+    "Ripple",
+    "Decay",
+    "Flutter",
+    "Gravity",
+    "Gossamer",
+    "Echoes of Time"
+];
 
 const app = express();
 const PORT = process.env.PORT || 10000; // Use environment variable or default to 3001
@@ -24,28 +63,34 @@ app.use(express.urlencoded({
   extended: true
 })); // Configure URL-encoded bodies with increased limits too
 
-// --- In-memory Data (Replace with Database later) ---
-// Simple list of prompts for the daily endpoint
-const dailyPrompts = [
-  "A lone tree on a hill",
-  "City skyline at sunset",
-  "A curious cat",
-  "Abstract shapes and lines",
-  "Your favorite food",
-  "Something you see right now",
-  "A dream you had",
-  "Under the sea",
-  "In the clouds",
-  "Portrait of a friend"
-];
-
 // --- API Routes ---
 
-// GET Daily Prompt
+// UPDATED: GET Daily Prompt - One prompt per day of year
 app.get('/api/prompts/daily', (req, res) => {
   console.log('GET /api/prompts/daily');
-  const randomIndex = Math.floor(Math.random() * dailyPrompts.length);
-  res.json({ prompt: dailyPrompts[randomIndex] });
+  
+  // Get the current date
+  const today = new Date();
+  
+  // Calculate day of year (0-365)
+  const start = new Date(today.getFullYear(), 0, 0);
+  const diff = today - start;
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  // Use day of year to select a prompt, cycling through the list as needed
+  const promptIndex = dayOfYear % prompts.length;
+  const todaysPrompt = prompts[promptIndex];
+  
+  const formattedDate = today.toLocaleDateString('en-US', { 
+    month: 'long', day: 'numeric', year: 'numeric' 
+  });
+  
+  console.log(`Serving prompt "${todaysPrompt}" for ${formattedDate} (Day ${dayOfYear} of year)`);
+  
+  res.json({ 
+    prompt: todaysPrompt,
+    date: formattedDate
+  });
 });
 
 // GET All Sketches (Now using SketchManager)

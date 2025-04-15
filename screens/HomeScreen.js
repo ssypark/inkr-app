@@ -343,7 +343,7 @@ export default function HomeScreen() {
                         ) : (
                             <TouchableOpacity onPress={() => navigation.navigate('SketchDetail', { sketch: item })}>
                                 <Image
-                                    source={item.imageUri}
+                                    source={{ uri: item.uri }} // Change from item.imageUri to item.uri
                                     resizeMode='cover'
                                     style={{
                                         width: getThumbnailSize(),

@@ -49,12 +49,13 @@ export default function SketchDetailScreen() {
       {/* Sketch Image */}
       <View style={{ width: '100%', height: 570, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
         <Image
-          source={sketch.imageUri}
+          source={{ uri: sketch.uri }} // Change from sketch.imageUri to sketch.uri
           style={{
             width: 300,
             height: 600,
             marginTop: -80,  // shift the image up by 30px
           }}
+          resizeMode="contain"
         />
       </View>
 
