@@ -83,51 +83,66 @@ export default function SketchDetailScreen() {
       </Text>
       
       {/* Styled Buttons (Delete & Back) */}
-      <View style={{ alignItems: 'center', marginTop: 20 }}>
-
+      <View style={{ alignItems: 'center', marginTop: 20, width: '100%' }}>
         {/* DELETE BUTTON */}
         <TouchableOpacity
           onPress={handleDelete}
           style={{
-            backgroundColor: theme.colors.background,
-            paddingVertical: 10,
+            backgroundColor: theme.colors.accent,
+            paddingVertical: 14,
             paddingHorizontal: 20,
-            borderRadius: 8,
-            borderColor: theme.colors.accent,
+            borderRadius: 30,
+            borderColor: theme.colors.border,
             borderWidth: 2,
-            alignSelf: 'center',
-            marginTop: 0,
+            width: 200, // Fixed width instead of stretch
+            marginBottom: 12,
+            // Enhance shadow for better 3D effect
+            shadowColor: '#000',
+            shadowOffset: { width: 4, height: 4 }, // Offset to bottom-right
+            shadowOpacity: 0.4,
+            shadowRadius: 0, // Sharp shadow edge
+            elevation: 6,
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: theme.fonts.bold, color: theme.colors.accent, textAlign: 'center' }}>
-            Delete Sketch
+          <Text style={{ 
+            fontSize: 18, 
+            fontFamily: theme.fonts.bold, 
+            color: 'white', 
+            textAlign: 'center' 
+          }}>
+            Delete
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 10 }} />
-
-        {/* BACK BUTTON */}
+        {/* BACK BUTTON - renamed to Home to match image */}
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
           style={{
             backgroundColor: theme.colors.background,
-            paddingVertical: 10,
+            paddingVertical: 14,
             paddingHorizontal: 20,
-            borderRadius: 8,
+            borderRadius: 30,
             borderColor: theme.colors.border,
             borderWidth: 2,
-            alignSelf: 'center',
-            marginTop: 0
+            width: 200, // Fixed width instead of stretch
+            // Enhance shadow for better 3D effect
+            shadowColor: '#000',
+            shadowOffset: { width: 4, height: 4 }, // Offset to bottom-right
+            shadowOpacity: 0.4,
+            shadowRadius: 0, // Sharp shadow edge 
+            elevation: 6,
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: theme.fonts.bold, color: theme.colors.border, textAlign: 'center' }}>
-            Back to Gallery
+          <Text style={{ 
+            fontSize: 18, 
+            fontFamily: theme.fonts.bold, 
+            color: theme.colors.border, 
+            textAlign: 'center' 
+          }}>
+            Home
           </Text>
         </TouchableOpacity>
       </View>
-
-
-
 
     </SafeAreaView>
   );

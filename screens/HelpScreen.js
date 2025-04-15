@@ -81,16 +81,28 @@ export default function HelpScreen() {
                     onPress={() => navigation.navigate('Prompt')}
                     style={{
                         backgroundColor: theme.colors.border,
-                        paddingVertical: 15,
+                        paddingVertical: 14,
                         paddingHorizontal: 25,
-                        borderRadius: 8,
+                        borderRadius: 30,
                         borderColor: theme.colors.border,
                         borderWidth: 2,
-                        alignSelf: 'center'
+                        alignSelf: 'center',
+                        width: 200,
+                        // Add 3D shadow effect
+                        shadowColor: '#000',
+                        shadowOffset: { width: 4, height: 4 },
+                        shadowOpacity: 0.4,
+                        shadowRadius: 0, // Sharp shadow edge
+                        elevation: 6,
                     }}
                 >
-                    <Text style={{ fontSize: 18, fontFamily: theme.fonts.bold, color: theme.colors.background, textAlign: 'center' }}>
-                        Start a New Sketch
+                    <Text style={{ 
+                        fontSize: 18, 
+                        fontFamily: theme.fonts.bold, 
+                        color: theme.colors.background, 
+                        textAlign: 'center' 
+                    }}>
+                        Start Sketching
                     </Text>
                 </TouchableOpacity>
 
@@ -102,17 +114,29 @@ export default function HelpScreen() {
                     }}
                     style={{
                         backgroundColor: theme.colors.background,
-                        paddingVertical: 10,
+                        paddingVertical: 14,
                         paddingHorizontal: 20,
-                        borderRadius: 8,
-                        borderColor: theme.colors.neutral,
+                        borderRadius: 30,
+                        borderColor: theme.colors.border,
                         borderWidth: 2,
                         alignSelf: 'center',
-                        marginTop: 40
+                        marginTop: 40,
+                        width: 200,
+                        // Add 3D shadow effect
+                        shadowColor: '#000',
+                        shadowOffset: { width: 4, height: 4 },
+                        shadowOpacity: 0.4,
+                        shadowRadius: 0, // Sharp shadow edge
+                        elevation: 6,
                     }}
                 >
-                    <Text style={{ fontSize: 18, fontFamily: theme.fonts.bold, color: theme.colors.neutral, textAlign: 'center' }}>
-                        Load Sample Data
+                    <Text style={{ 
+                        fontSize: 18, 
+                        fontFamily: theme.fonts.bold, 
+                        color: theme.colors.border, 
+                        textAlign: 'center' 
+                    }}>
+                        Load Samples
                     </Text>
                 </TouchableOpacity>
 
@@ -125,16 +149,28 @@ export default function HelpScreen() {
                     }}
                     style={{
                         backgroundColor: theme.colors.background,
-                        paddingVertical: 10,
+                        paddingVertical: 14,
                         paddingHorizontal: 20,
-                        borderRadius: 8,
+                        borderRadius: 30,
                         borderColor: theme.colors.accent,
                         borderWidth: 2,
                         alignSelf: 'center',
-                        marginTop: 10
+                        marginTop: 20,
+                        width: 200,
+                        // Add 3D shadow effect
+                        shadowColor: '#000',
+                        shadowOffset: { width: 4, height: 4 },
+                        shadowOpacity: 0.4,
+                        shadowRadius: 0, // Sharp shadow edge
+                        elevation: 6,
                     }}
                 >
-                    <Text style={{ fontSize: 18, fontFamily: theme.fonts.bold, color: theme.colors.accent, textAlign: 'center' }}>
+                    <Text style={{ 
+                        fontSize: 18, 
+                        fontFamily: theme.fonts.bold, 
+                        color: theme.colors.accent, 
+                        textAlign: 'center' 
+                    }}>
                         Clear All Data
                     </Text>
                 </TouchableOpacity>
