@@ -1,30 +1,62 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { prompts } from '../data/prompts';
 import { SketchCanvas } from '../components/SketchCanvas';
 import { updateSketchData, getSketchData } from '../services/SketchManager';
+import * as ApiService from '../services/ApiService';
 
 export default function PromptScreen({ navigation }) {
     const [prompt, setPrompt] = useState('');
     const [date, setDate] = useState('');
 
     useEffect(() => {
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('en-US', {  
-            month: 'long', 
-            day: 'numeric', 
-            year: 'numeric' 
-        });
+        const loadPrompt = async () => {
+            try {
+                // Try to fetch prompt from server
+                const serverPrompt = await ApiService.fetchDailyPrompt();
+                
+                if (serverPrompt) {
+                    setPrompt(serverPrompt);
+                } else {
+                    // Fallback to local prompts
+                    const today = new Date();
+                    const promptIndex = today.getDate() % prompts.length;
+                    setPrompt(prompts[promptIndex]);
+                }
+                
+                // Set date
+                const today = new Date();
+                const formattedDate = today.toLocaleDateString('en-US', {  
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                setDate(formattedDate);
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+                // Fallback to local prompts
+                const today = new Date();
+                const promptIndex = today.getDate() % prompts.length;
+                setPrompt(prompts[promptIndex]);
+                
+                // Set date
+                const formattedDate = today.toLocaleDateString('en-US', {  
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                setDate(formattedDate);
+            }
+        };
         
-        const promptIndex = today.getDate() % prompts.length;
-        setPrompt(prompts[promptIndex]);
-        setDate(formattedDate);
+        loadPrompt();
     }, []);
 
     const handleSaveSketch = async (imageData) => {
         try {
+            console.log('Saving sketch...');
             // Create a unique ID for the sketch
             const sketchId = `sketch-${Date.now()}`;
             
@@ -33,9 +65,25 @@ export default function PromptScreen({ navigation }) {
                 id: sketchId,
                 date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
                 prompt: prompt,
-                imageUri: imageData // This is already a data URL from SketchCanvas
+                uri: imageData // This is the data URL from SketchCanvas
             };
             
+            // Try saving to server first
+            console.log('Saving to backend (https://inkr-backend.onrender.com)...');
+            try {
+                const savedSketch = await ApiService.saveSketch(newSketch);
+                console.log('Sketch saved to server successfully:', savedSketch);
+            } catch (serverError) {
+                console.error('Error saving to server:', serverError);
+                Alert.alert(
+                    "Server Error",
+                    "Could not save to server, but sketch will be saved locally.",
+                    [{ text: "OK" }]
+                );
+            }
+            
+            // Also save locally (regardless of server success)
+            console.log('Saving locally...');
             // Get existing sketches
             const existingSketches = await getSketchData();
             
@@ -45,10 +93,24 @@ export default function PromptScreen({ navigation }) {
             // Save the updated sketches array
             await updateSketchData(updatedSketches);
             
-            // Navigate back to the home screen
-            navigation.goBack();
+            // Success message
+            Alert.alert(
+                "Sketch Saved",
+                "Your sketch has been saved successfully!",
+                [
+                    { 
+                        text: "OK", 
+                        onPress: () => navigation.goBack() 
+                    }
+                ]
+            );
         } catch (error) {
             console.error('Error saving sketch:', error);
+            Alert.alert(
+                "Error",
+                "There was a problem saving your sketch. Please try again.",
+                [{ text: "OK" }]
+            );
         }
     };
 

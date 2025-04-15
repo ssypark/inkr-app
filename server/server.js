@@ -12,7 +12,7 @@ const {
 } = require('./sketchManager.server');
 
 const app = express();
-const PORT = process.env.PORT || 3001; // Use environment variable or default to 3001
+const PORT = process.env.PORT || 10000; // Use environment variable or default to 3001
 
 // --- Middleware ---
 app.use(cors()); // Enable Cross-Origin Resource Sharing for requests from your app

@@ -1,43 +1,70 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sampleData } from '../data/sampleData';
+import * as ApiService from './ApiService'; 
 
 // we first define a key for the AsyncStorage item
 // this key will be used to store and retrieve the sketch data
 const STORAGE_KEY = 'SKETCH_DATA';
 
-// I was having difficulty with the date format, so I created a helper function to convert the date to a string
 // Helper function to validate a date string
-// we need to check if the date is valid before storing it in AsyncStorage
-// the format should be "YYYY-MM-DD" so we can sort and filter sketches by date
 function isValidDate(date) {
     if (!date) return false;
-    const parsedDate = new Date(date); // paredDate is a Date object that will be invalid if the date string is not in a valid format
-    return !isNaN(parsedDate.getTime()); // getTime() returns NaN for invalid dates
+    const parsedDate = new Date(date);
+    return !isNaN(parsedDate.getTime());
 }
 
-// this function deletes a sketch from storage by its ID
+// Delete a sketch from storage by its ID
 export async function deleteSketch(sketchId) {
     console.log("Deleting sketch with ID:", sketchId);
     try {
-        // Fetch existing sketches
+        // First try to delete from the server
+        await ApiService.removeSketch(sketchId);
+        
+        // If successful or not, also update local storage as a backup
         let storedData = await AsyncStorage.getItem(STORAGE_KEY);
         let sketches = storedData ? JSON.parse(storedData) : [];
-
-        // Filter out the item
         const updatedSketches = sketches.filter(item => item.id !== sketchId);
-
-        // console.log("Updated sketches after removal:", updatedSketches);
-
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSketches));
     } catch (error) {
         console.error('Error deleting sketch:', error);
+        // If server fails, still try to update local storage
+        try {
+            let storedData = await AsyncStorage.getItem(STORAGE_KEY);
+            let sketches = storedData ? JSON.parse(storedData) : [];
+            const updatedSketches = sketches.filter(item => item.id !== sketchId);
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSketches));
+        } catch (localError) {
+            console.error('Error updating local storage:', localError);
+        }
     }
 }
 
 // Get sketches from storage without automatically reloading sample data
 export async function getSketchData() {
     try {
-        // Fetch existing sketches
+        // First try to fetch from the server
+        const serverSketches = await ApiService.fetchSketches();
+        
+        if (serverSketches && serverSketches.length > 0) {
+            // Convert each date to "YYYY-MM-DD" if valid, default to today if invalid
+            const formattedSketches = serverSketches.map(sketch => ({
+                ...sketch,
+                date: isValidDate(sketch.date)
+                    ? new Date(sketch.date).toISOString().split('T')[0]
+                    : new Date().toISOString().split('T')[0]
+            }));
+            
+            // Also update local storage as a backup
+            try {
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(formattedSketches));
+            } catch (localError) {
+                console.error('Error updating local storage:', localError);
+            }
+            
+            return formattedSketches;
+        }
+        
+        // If server request fails or returns no data, fall back to local storage
         let rawData = await AsyncStorage.getItem(STORAGE_KEY);
         let sketches = rawData ? JSON.parse(rawData) : [];
 
@@ -49,32 +76,79 @@ export async function getSketchData() {
                 : new Date().toISOString().split('T')[0]
         }));
 
-        // Return sketches sorted by date (newest first)
         return sketches;
     } catch (error) {
-        console.log('Error loading sketches:', error);
-        return [];
+        console.log('Error loading sketches from server, falling back to local:', error);
+        
+        // Fall back to local storage
+        try {
+            let rawData = await AsyncStorage.getItem(STORAGE_KEY);
+            let sketches = rawData ? JSON.parse(rawData) : [];
+
+            // Convert each date to "YYYY-MM-DD" if valid, default to today if invalid
+            sketches = sketches.map(sketch => ({
+                ...sketch,
+                date: isValidDate(sketch.date)
+                    ? new Date(sketch.date).toISOString().split('T')[0]
+                    : new Date().toISOString().split('T')[0]
+            }));
+
+            return sketches;
+        } catch (localError) {
+            console.error('Error loading sketches from local storage:', localError);
+            return [];
+        }
     }
 }
 
 // Overwrite the full list of sketches
-// this function will be used to update the sketch data in AsyncStorage when a new sketch is added or an existing sketch is deleted
 export async function updateSketchData(arrSketches) {
     try {
+        // For each sketch in the array, save to server
+        for (const sketch of arrSketches) {
+            await ApiService.saveSketch(sketch);
+        }
+        
+        // Also update local storage as a backup
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(arrSketches));
     } catch (error) {
-        console.log('Error updating sketches:', error);
+        console.log('Error updating sketches on server, falling back to local:', error);
+        
+        // Fall back to local storage
+        try {
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(arrSketches));
+        } catch (localError) {
+            console.error('Error updating local storage:', localError);
+        }
     }
 }
 
 // Clear all sketches from storage
 export async function clearAllSketches() {
     try {
-        await AsyncStorage.removeItem(STORAGE_KEY); // Remove stored sketches
+        // Fetch all sketches from server or local storage
+        const sketches = await getSketchData();
+        
+        // Delete each sketch from server
+        for (const sketch of sketches) {
+            await ApiService.removeSketch(sketch.id);
+        }
+        
+        // Also clear local storage
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        
         console.log("All sketches cleared");
-        return []; // Return empty array so UI can update
+        return [];
     } catch (error) {
         console.error("Error clearing sketches:", error);
+        
+        // Try to at least clear local storage
+        try {
+            await AsyncStorage.removeItem(STORAGE_KEY);
+        } catch (localError) {
+            console.error("Error clearing local sketches:", localError);
+        }
+        
         return [];
     }
 }
@@ -82,26 +156,38 @@ export async function clearAllSketches() {
 // Load sample sketches manually (avoiding duplicates)
 export async function loadSampleData() {
     try {
-        let sketches = await getSketchData();
-
-        // Avoid duplicates by checking IDs
-        const newSketches = sampleData.filter(sample =>
-            !sketches.some(userSketch => userSketch.id === sample.id)
-        );
-
-        if (newSketches.length > 0) {
-            const updatedSketches = [...sketches, ...newSketches];
-            await updateSketchData(updatedSketches);
-            console.log("Sample Data Loaded");
-        } else {
-            console.log("Sample Data Already Exists or is partially loaded");
-        }
+        // Try to load samples from server
+        const result = await ApiService.loadSamples();
+        console.log("Sample data loaded from server:", result);
+        
+        // No need to manipulate local storage, the getSketchData function 
+        // will handle fetching from server next time it's called
     } catch (error) {
-        console.error("Error loading sample data:", error);
+        console.error("Error loading sample data from server, using local fallback:", error);
+        
+        // Fall back to local implementation
+        try {
+            let sketches = await getSketchData();
+
+            // Avoid duplicates by checking IDs
+            const newSketches = sampleData.filter(sample =>
+                !sketches.some(userSketch => userSketch.id === sample.id)
+            );
+
+            if (newSketches.length > 0) {
+                const updatedSketches = [...sketches, ...newSketches];
+                await updateSketchData(updatedSketches);
+                console.log("Sample Data Loaded Locally");
+            } else {
+                console.log("Sample Data Already Exists or is partially loaded");
+            }
+        } catch (localError) {
+            console.error("Error loading sample data locally:", localError);
+        }
     }
 }
 
-// FILTER FUNCTIONS
+// FILTER FUNCTIONS - These will now work with data from either source
 export function filterByWeek(sketches) {
     const now = new Date();
     return sketches.filter(sketch => {
